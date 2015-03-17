@@ -17,6 +17,8 @@ INSTALLED_APPS = (
 
     'bobs_network_management.app',
     'bobs_network_management.app.controlpanel',
+    'bobs_network_management.app.snmp',
+    'bobs_network_management.app.cim',
 )
 
 MIDDLEWARE_CLASSES = (

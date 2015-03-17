@@ -1,9 +1,19 @@
-.sidebar {
-	background-color: #eee;
-	height: 100vh;
+.system-information {
+	border: 2px solid #eee;
+	margin-bottom: 15px;
 }
-.sidebar .link {
-	font-size: 20px;
-	padding: 10px;
-	border-bottom: 1px solid #f8f8f8;
+h4, h1 {
+	text-align: center;
+}
+h1 {
+	margin-top: 0;
+}
+body {
+	padding: 15px;
+}
+.col-xs-6 {
+	padding: 0 10px 10px 10px;
+}
+.row {
+	padding: 0 10px 10px 10px;
 }

@@ -1,9 +1,63 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="col-xs-11">
-	<div class="col-xs-4 system-information">
-		
+<div class="col-xs-6">
+	<h1>SNMP</h1>
+	{% for snmp in snmp_agents %}
+		<div class="row">
+			<div class="col-xs-12 system-information">
+				<h4>{{ snmp }}</h4>
+				<table class="table table-striped table-bordered table-advanced">
+					<thead>
+						<tr>
+							<th>Index</th>
+							<th>Name</th>
+							<th>IP Address</th>
+							<th>Network Mask</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for i in snmp.getInterfaces %}
+							<tr>
+								<td>{{ i.ipAdEntIfIndex }}</td>
+								<td>{{ i }}</td>
+								<td>{{ i.ipAdEntAddr }}</td>
+								<td>{{ i.ipAdEntNetMask }}</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	{% endfor %}
+</div>
+
+<div class="col-xs-6">
+	<h1>CIM</h1>
+	<div class="row">
+	<div class="col-xs-12 system-information">
+		<h4>{{ cim }}</h4>
+		<table class="table table-striped table-bordered table-advanced">
+			<thead>
+				<tr>
+					<th>Index</th>
+					<th>Name</th>
+					<th>IP Address</th>
+					<th>Network Mask</th>
+				</tr>
+			</thead>
+			<tbody>
+				{% for i in cim.getInterfaces %}
+					<tr>
+						<td>{{ forloop.counter }}</td>
+						<td>{{ i }}</td>
+						<td>{{ i.ifPhysAddress }}</td>
+						<td>{{ i.network_mask }}</td>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
 	</div>
+</div>
 </div>
 {% endblock %}
