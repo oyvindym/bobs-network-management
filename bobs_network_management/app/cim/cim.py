@@ -7,84 +7,139 @@ class CimParser(object):
     def __init__(self, wbemtarget):
         self.wbemtarget = wbemtarget
 
-    def execute(self, command):
-        proc = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-        out, err = proc.communicate()
-        return err
-
-    def wbemRequest(self, operation, args):
-        command = "wbemcli -dx -nl %s %s:%s" % (operation, self.wbemtarget, args)
-        return self.execute(command)
-
-    def wbemResponseAsXml(self, operation, args):
-        rawData = self.wbemRequest(operation, args)
-        xmlStart = 'From server: <?xml version="1.0" encoding="utf-8" ?>'
-        strings = rawData.split(xmlStart)
-        xml = '<?xml version="1.0" encoding="utf-8" ?>' + strings[1]
-        return xml
-
-    def getIPInterfaces(self):
-        args = "CIM_IPProtocolEndpoint"
-        lists = self.getPropertyListsFromWBEM(args)
-        interfaces = []
-        for l in lists:
-            interfaceInfo = self.getPropertyValues(l, ["Name", "IPv4Address", "SubnetMask"])
-            interfaces.append(interfaceInfo)
-
-        return interfaces
-
-    def getOperatingSystemsData(self):
-        args = "CIM_OperatingSystem"
-        lists = self.getPropertyListsFromWBEM(args)
-        if len(lists) > 1:
-            raise IndexError("Too many operative systems!")
-        version = self.getPropertyValue(lists[0], "Version")
-        return version
-
     def getSystemInformation(self):
-        sysInfo = SystemInformation(self.getOperatingSystemsData())
-        interfaces = self.getIPInterfaces()
+        """
+        Returns a SystemInformation object with associated Interface objects,
+        each containing information gathered from the WBEM server
+        """
+        sysInfo = SystemInformation(self._getOperatingSystemData())
+        interfaces = self._getIPInterfaces()
         for interface in interfaces:
             sysInfo.addInterface(Interface(interface[0], interface[1], interface[2]))
 
         return sysInfo
 
-    def getPropertyListsFromWBEM(self, args):
+    def _execute(self, command):
+        """
+        Executes a shell command
+        :input command:
+        """
+        proc = subprocess.Popen([command], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        out, err = proc.communicate()
+        return err
+
+    def _wbemRequest(self, operation, args):
+        """
+        Executes a wbemcli shell command with given arguments
+        :input operation:
+        :input args:
+        """
+        command = "wbemcli -dx -nl %s %s:%s" % (operation, self.wbemtarget, args)
+        return self._execute(command)
+
+    def _wbemResponseToXml(self, wbemResponse):
+        """
+        Extracts 'from server' XML from wbem response
+        :input wbemResponse:
+        """ 
+        xmlStart = 'From server: <?xml version="1.0" encoding="utf-8" ?>'
+        strings = wbemResponse.split(xmlStart)
+        xml = '<?xml version="1.0" encoding="utf-8" ?>' + strings[1]
+        return xml
+
+    def _getIPInterfaces(self):
+        """
+        Returns a list of lists where each sublist represent one ip interface on the WBEM server.
+        """
+        args = "CIM_IPProtocolEndpoint"
+        lists = self._getPropertyListsFromWBEM(args)
+        interfaces = []
+        for l in lists:
+            interfaceInfo = self._getPropertyValues(l, ["Name", "IPv4Address", "SubnetMask"])
+            interfaces.append(interfaceInfo)
+
+        return interfaces
+
+    def _getOperatingSystemData(self):
+        """
+        Returns the version string of the OperatingSystem object from the WBEM server
+        """
+        args = "CIM_OperatingSystem"
+        lists = self._getPropertyListsFromWBEM(args)
+        if len(lists) > 1:
+            raise IndexError("Too many operative systems!")
+        version = self._getPropertyValue(lists[0], "Version")
+        return version
+
+
+    def _getPropertyListsFromWBEM(self, args):
+        """
+        Returns a list of properties belonging to the CIM object given in args
+        :input args:
+        """
         lists = []
-        xml = self.wbemResponseAsXml("ein", args)
-        instances = self.getInstancesFromXml(xml)
+        wbemResponse = self._wbemRequest("ein", args)
+        wbemXml = self._wbemResponseToXml(wbemResponse)
+        instances = self._getInstancesFromXml(wbemXml)
         for instance in instances:
-            keybinding = self.getKeyBindingsString(instance)
-            instanceXml = self.getInstanceFromWBEM(keybinding)
-            propertyList = self.getPropertyListFromXml(instanceXml)
+            keybinding = self._getKeyBindingsString(instance)
+            instanceXml = self._getInstanceFromWBEM(keybinding)
+            propertyList = self._getPropertyListFromXml(instanceXml)
             lists.append(propertyList)
         return lists
 
-    def getInstanceFromWBEM(self, key):
-        return self.wbemResponseAsXml("gi", key)
-
-    def getPropertyListFromXml(self, xml):
-        root = self.getXmlRoot(xml)
+    def _getPropertyListFromXml(self, xml):
+        """
+        Returns a list of properties parsed from XML
+        :input xml:
+        """
+        root = self._getXmlRoot(xml)
         propertyTree = root.findall("./MESSAGE/SIMPLERSP/IMETHODRESPONSE/IRETURNVALUE/INSTANCE/")
         return propertyTree
 
-    def getPropertyValue(self, propertyList, propertyName):
+    def _getInstanceFromWBEM(self, key):
+        """
+        Returns the instance related to given key as XML
+        :input key:
+        """
+        wbemResponse = self._wbemRequest("gi", key)
+        return self._wbemResponseToXml(wbemResponse)
+
+    def _getPropertyValue(self, propertyList, propertyName):
+        """
+        Returns the value of the property with given name from the given property list
+        :input propertyList:
+        :input propertyName:
+        """
         for element in propertyList:
             if element.attrib['NAME'] == propertyName:
                 return element.getchildren()[0].text
 
-    def getPropertyValues(self, propertyList, propertyNames):
+    def _getPropertyValues(self, propertyList, propertyNames):
+        """
+        Returns a list of property values given a list of property names from the given property list
+        :input propertyList:
+        :input propertyNames:
+        """
         properties = []
         for name in propertyNames:
-            properties.append(self.getPropertyValue(propertyList, name))
+            properties.append(self._getPropertyValue(propertyList, name))
         return properties
 
-    def getInstancesFromXml(self, xml):
-        root = self.getXmlRoot(xml)
+    def _getInstancesFromXml(self, xml):
+        """
+        Returns a list of CIM object instances parsed from the given XML
+        :input xml:
+        """
+        root = self._getXmlRoot(xml)
         instances = root.findall("./MESSAGE/SIMPLERSP/IMETHODRESPONSE/IRETURNVALUE/")
         return instances
 
-    def getKeyBindingsString(self, instance):
+    def _getKeyBindingsString(self, instance):
+        """
+        Returns a string with the key binding for the given CIM object instance
+        :input instance:
+        """
         keybinding = instance.attrib.values()[0] + "."
         for key in instance:
             keybinding += key.attrib.values()[0] + "="
@@ -93,8 +148,12 @@ class CimParser(object):
         return "'" + keybinding.strip(',') + "'"
 
 
-    def getXmlRoot(self, string):
-        return ET.fromstring(string)
+    def _getXmlRoot(self, xmlAsString):
+        """
+        Returns the root of the XML tree given as a string
+        :input xmlAsString:
+        """
+        return ET.fromstring(xmlAsString)
 
 class SystemInformation(object):
     def __init__(self, sysDescr):
@@ -140,4 +199,3 @@ class Interface(object):
         Default print option for Interface
         """
         return self.ifDescr
-
