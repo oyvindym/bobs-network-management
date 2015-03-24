@@ -1,5 +1,8 @@
 import subprocess
 
+"""
+IP addresses to the agents in Bobs network
+"""
 AGENTS = [
 	'localhost',
 	'129.241.209.2',
@@ -20,6 +23,7 @@ class SNMP(object):
 		"""
 		Execute the given command
 		:input command:
+		:input arguments:
 		"""
 		proc = subprocess.Popen(
 				["%s -c %s -v %s %s %s" % (
